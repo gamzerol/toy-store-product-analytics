@@ -15,9 +15,6 @@ SELECT
     COUNT(*)        FILTER (WHERE is_primary_item = 0) AS cross_sell_items,
     COUNT(*)                                           AS all_items
 FROM order_items;
--- EXPLANATION:
--- * is_primary_item = 0 marks an add-on item bought together with the main one.
--- * The first such timestamp dates the cross-sell launch from the data itself.
 
 -- QUERY 2: monthly basket metrics ---------------------------------------
 SELECT
@@ -31,10 +28,6 @@ FROM orders
 WHERE created_at >= '2012-04-01' AND created_at < '2015-03-01'
 GROUP BY 1
 ORDER BY 1;
--- EXPLANATION:
--- * Items per order and the share of multi-item orders measure cross-sell adoption.
--- * Gross margin % shows whether the extra items are profitable, not only bigger baskets.
--- * Line this up with the AOV steps seen in module 01.
 
 -- QUERY 3: which products are bought together? ---------------------------
 SELECT
@@ -48,11 +41,6 @@ JOIN products p2 ON p2.product_id = oi.product_id
 WHERE oi.is_primary_item = 0
 GROUP BY 1, 2
 ORDER BY orders DESC;
--- EXPLANATION:
--- * Joins the products table twice under two aliases: once for the main product of the
---   order, once for the add-on item.
--- * The top pairs show which bundles customers choose and where a recommendation or
---   bundle offer could be tested.
 
 -- QUERY 4: revenue and margin by product, per quarter ---------------------
 SELECT
@@ -66,9 +54,6 @@ JOIN products p ON p.product_id = oi.product_id
 WHERE oi.created_at >= '2012-04-01' AND oi.created_at < '2015-01-01'
 GROUP BY 1, 2
 ORDER BY 1, 3 DESC;
--- EXPLANATION:
--- * Quarterly to keep the table readable; ends at 2014-12-31 so the last quarter is full.
--- * Shows each product's contribution and whether newer products carry better or worse margin.
 
 -- QUERY 5: 30 days before vs 30 days after each launch --------------------
 WITH launches AS (
@@ -92,10 +77,3 @@ JOIN website_sessions s
 LEFT JOIN orders o ON o.website_session_id = s.website_session_id
 GROUP BY l.product_name, l.launch_ts, period
 ORDER BY l.launch_ts, period;
--- EXPLANATION:
--- * Each launch becomes a pair of 30-day windows around its date. A range join (ON with
---   date conditions) attaches every session to the launches whose window contains it.
--- * The CASE splits each window into pre and post. Compare revenue per session, AOV and
---   margin: a launch can lift basket size without changing conversion.
--- * Descriptive only: the December 2013 launch sits inside the holiday season, so a
---   rise there is partly seasonality. Say this explicitly when presenting the result.

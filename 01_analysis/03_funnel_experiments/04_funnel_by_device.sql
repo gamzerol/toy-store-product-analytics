@@ -29,18 +29,10 @@ SELECT
 FROM v_sessions_channel s
 JOIN website_pageviews p ON p.website_session_id = s.website_session_id
 GROUP BY s.website_session_id, s.created_at, s.device_type, s.channel_group;
--- EXPLANATION:
--- * Boolean expression cast to int gives 1 if that page appears in the row, else 0.
---   MAX over the session's rows turns it into "did the session ever reach this page".
--- * This is a standard way to build a funnel in SQL without self-joins: one pass over
---   the pageviews, one row per session.
--- * Every later query is simple sums over these flags.
 
 -- VALIDATION: funnel end must match the orders table ------------------
 SELECT SUM(to_order) AS funnel_orders, (SELECT COUNT(*) FROM orders) AS orders_table
 FROM v_session_funnel;
--- EXPLANATION: Both numbers should be 32,313. If they differ, the funnel logic, not
--- the business, is wrong, so we check before interpreting anything.
 
 -- QUERY 1: overall funnel with step conversion ----------------------------
 WITH f AS (
@@ -67,10 +59,6 @@ SELECT 5, 'shipping -> billing',       shipping,     billing,      ROUND(billing
 UNION ALL
 SELECT 6, 'billing -> order',          billing,      orders,       ROUND(orders::numeric       / billing,      4) FROM f
 ORDER BY step_no;
--- EXPLANATION:
--- * One CTE holds the counts; each UNION ALL branch turns them into a "from, to, rate" row.
--- * Step rate = sessions reaching the step / sessions at the previous step.
---   The biggest absolute loss (not only the lowest rate) shows where to look first.
 
 -- QUERY 2: funnel by device, side by side --------------------------------
 SELECT
@@ -87,12 +75,6 @@ FROM v_session_funnel
 WHERE created_at >= '2012-04-01' AND created_at < '2015-03-01'
 GROUP BY device_type
 ORDER BY device_type;
--- EXPLANATION:
--- * Same step rates as Query 1, computed per device with GROUP BY.
--- * Read across the two rows: the step where mobile is lowest relative to desktop is
---   where the mobile experience loses people. A gap that appears at the very first
---   step points to the landing experience; later gaps point to cart or checkout.
--- * NULLIF avoids division by zero if a step has no sessions.
 
 -- QUERY 3: same, paid non-brand only (control for channel mix) ------------
 SELECT
@@ -110,7 +92,3 @@ WHERE created_at >= '2012-04-01' AND created_at < '2015-03-01'
   AND channel_group = 'paid_nonbrand'
 GROUP BY device_type
 ORDER BY device_type;
--- EXPLANATION:
--- * Desktop and mobile users arrive through different channel mixes. Restricting to one
---   channel checks that the device gap is not just a channel mix effect.
--- * If the gap pattern is the same as in Query 2, the device finding is robust to channel.

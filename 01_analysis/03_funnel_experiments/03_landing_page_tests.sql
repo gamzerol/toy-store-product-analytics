@@ -33,12 +33,6 @@ FROM first_pv f
 JOIN website_pageviews p   ON p.website_pageview_id = f.first_pv_id
 JOIN v_sessions_channel s  ON s.website_session_id  = f.website_session_id
 LEFT JOIN orders o         ON o.website_session_id  = f.website_session_id;
--- EXPLANATION:
--- * The landing page is the first pageview of a session. Pageview ids increase over
---   time, so MIN(website_pageview_id) is the first page.
--- * Bounce = the session had exactly one pageview, i.e. the visitor left immediately.
--- * LEFT JOIN orders keeps sessions that did not order (needed for conversion rates).
--- * A view means every comparison below uses the same definitions.
 
 -- QUERY 1: who sees which landing page? (composition check) ------------
 SELECT
@@ -54,11 +48,6 @@ FROM v_sessions_landing
 WHERE created_at >= '2012-04-01' AND created_at < '2015-03-01'
 GROUP BY landing_page
 ORDER BY landing_page;
--- EXPLANATION:
--- * If /home receives all the direct and organic traffic while the lander pages only
---   receive paid non-brand traffic, the pages are NOT comparable as they are.
--- * A fair comparison restricts both pages to the same channel and the same dates.
--- * This is the same idea as checking group balance before trusting an A/B test.
 
 -- QUERY 2: monthly sessions by landing page (overlap map) ---------------
 SELECT
@@ -73,10 +62,6 @@ FROM v_sessions_landing
 WHERE created_at >= '2012-04-01' AND created_at < '2015-03-01'
 GROUP BY 1
 ORDER BY 1;
--- EXPLANATION:
--- * A pivot made with conditional aggregation: one column per landing page.
--- * It shows when pages ran side by side and in what proportions, which tells us
---   which windows are usable for a comparison.
 
 -- QUERY 3A: when did /home and /lander-1 actually compete for paid non-brand traffic?
 SELECT
@@ -88,15 +73,6 @@ WHERE channel_group = 'paid_nonbrand'
   AND created_at >= '2012-06-01' AND created_at < '2012-10-01'
 GROUP BY 1
 ORDER BY 1;
--- EXPLANATION:
--- * Query 1 showed /lander-1 only receives paid non-brand traffic, so the fair comparison
---   is /home vs /lander-1 on paid non-brand sessions only.
--- * This weekly view shows the weeks in which BOTH pages received that traffic. After
---   /home stops receiving paid non-brand sessions, the two pages are no longer competing.
--- * Why not compare until /lander-2 starts? Because after /lander-1 took over all paid
---   non-brand traffic, its later sessions benefit from other site improvements (for example
---   /billing-2 from September 2012) that the earlier /home sessions never saw. That
---   mixes time with page effect and overstates the lift.
 
 -- QUERY 3B: home vs lander-1 on paid non-brand, concurrent window only -----------
 -- Start = first /lander-1 session. End = date when /home stops receiving paid non-brand
@@ -122,9 +98,3 @@ WHERE l.landing_page IN ('/home', '/lander-1')
   AND l.created_at >= w.start_ts AND l.created_at < w.end_ts
 GROUP BY l.landing_page
 ORDER BY l.landing_page;
--- EXPLANATION:
--- * Same dates, same traffic type, only two pages: the three controls that make it fair.
--- * Compare bounce rate (did the page keep people?) and session-to-order conversion
---   (did that turn into sales?). Revenue per session is the guardrail.
--- * Send sessions and orders per page to 02_billing_test_stats.py (works for any two
---   proportions): control = /home, variant = /lander-1.

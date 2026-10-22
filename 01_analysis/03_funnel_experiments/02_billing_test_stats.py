@@ -4,8 +4,9 @@ Two-proportion test for the billing page experiment.
 Usage:
     python 02_billing_test_stats.py <ctrl_sessions> <ctrl_orders> <var_sessions> <var_orders>
 
-Control = /billing (old page), variant = /billing-2 (new page).
-Inputs come from QUERY 1 in 01_billing_test.sql.
+Works for any two proportions. Billing test: control = /billing, variant = /billing-2.
+Landing test: control = /home, variant = /lander-1 (conversion: orders; bounce: bounces).
+Inputs come from the SQL output of the relevant query.
 Requires: pip install statsmodels
 """
 import sys
@@ -37,8 +38,8 @@ def main(n_ctrl, x_ctrl, n_var, x_var):
         effect_size=abs(effect), alpha=0.05, power=0.8, ratio=1.0
     )
 
-    print(f"control  (/billing)  : {x_ctrl}/{n_ctrl} = {p_ctrl:.4%}")
-    print(f"variant  (/billing-2): {x_var}/{n_var} = {p_var:.4%}")
+    print(f"control              : {x_ctrl}/{n_ctrl} = {p_ctrl:.4%}")
+    print(f"variant              : {x_var}/{n_var} = {p_var:.4%}")
     print(f"absolute lift        : {diff:+.2%} points")
     print(f"relative lift        : {diff / p_ctrl:+.1%}")
     print(f"95% CI of difference : [{low:+.2%}, {high:+.2%}]")

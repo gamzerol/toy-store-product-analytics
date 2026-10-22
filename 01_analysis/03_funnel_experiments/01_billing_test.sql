@@ -17,10 +17,6 @@ SELECT
     MIN(created_at) FILTER (WHERE pageview_url = '/billing-2') AS test_start,
     MAX(created_at) FILTER (WHERE pageview_url = '/billing')   AS test_end
 FROM website_pageviews;
--- EXPLANATION:
--- * The test window is defined by the data, not guessed: it starts when the new
---   page first appears and ends when the old page last appears.
--- * FILTER (WHERE ...) lets one scan compute two different aggregates.
 
 SELECT COUNT(*) AS sessions_seeing_both_pages
 FROM (
@@ -30,8 +26,6 @@ FROM (
     GROUP BY website_session_id
     HAVING COUNT(DISTINCT pageview_url) > 1
 ) t;
--- EXPLANATION: HAVING filters after grouping. A session that saw both versions
--- would contaminate the comparison, so we expect 0 here.
 
 -- STEP 1: analysis view, one row per billing session in the window -------
 CREATE OR REPLACE VIEW v_billing_test AS
@@ -54,11 +48,6 @@ JOIN v_sessions_channel s ON s.website_session_id = p.website_session_id
 LEFT JOIN orders o        ON o.website_session_id = p.website_session_id
 WHERE p.pageview_url IN ('/billing', '/billing-2')
   AND p.created_at BETWEEN w.test_start AND w.test_end;
--- EXPLANATION:
--- * One row per billing-page session, tagged with the version it saw and whether it
---   ended in an order. LEFT JOIN keeps sessions that did not order.
--- * CROSS JOIN with the one-row CTE w makes the window dates available to the WHERE.
--- * Putting this in a view means every check below uses the same, auditable definition.
 
 -- QUERY 1: the result: conversion by billing version ---------------------
 SELECT
@@ -70,12 +59,6 @@ SELECT
 FROM v_billing_test
 GROUP BY billing_version
 ORDER BY billing_version;
--- EXPLANATION:
--- * COUNT(order_id) ignores NULLs, so it counts sessions that converted.
--- * Send these four numbers (sessions and orders per version) to the stats script:
---   python 02_billing_test_stats.py <ctrl_sessions> <ctrl_orders> <var_sessions> <var_orders>
--- * Revenue per billing session is the guardrail: a page can lift conversion but
---   attract smaller baskets, so we check value, not only counts.
 
 -- QUERY 2: balance check, were the groups comparable? -------------------
 SELECT
@@ -86,11 +69,6 @@ SELECT
 FROM v_billing_test
 GROUP BY billing_version
 ORDER BY billing_version;
--- EXPLANATION:
--- * A valid A/B comparison needs similar groups. If one version got far more mobile
---   or far more paid traffic, a difference in conversion could come from the audience,
---   not from the page.
--- * This is a sample-balance sanity check, the first thing to verify after a result.
 
 -- QUERY 3: daily split, did both versions run side by side? --------------
 SELECT
@@ -102,7 +80,3 @@ WHERE p.pageview_url IN ('/billing', '/billing-2')
   AND p.created_at BETWEEN '2012-09-10' AND '2013-01-06'
 GROUP BY 1
 ORDER BY 1;
--- EXPLANATION:
--- * If both versions appear every day in similar numbers, assignment was concurrent
---   (time cannot explain the difference). If one version only appears in certain weeks,
---   the comparison is confounded by time and seasonality.
