@@ -2,8 +2,11 @@
 -- Module 01 | Growth trends
 -- Question: Is the business growing in a healthy way?
 -- North Star: revenue per session (RPS). Definitions: docs/metric_dictionary.md
--- Caution: drop the first and last month if they are partial (see check 1).
+-- Window: full months only. The data starts 2012-03-19 and ends 2015-03-19,
+-- so March 2012 and March 2015 are partial months and are excluded.
 -- =====================================================================
+
+SET search_path TO toystore;
 
 -- QUERY 1: monthly funnel-to-revenue summary ---------------------------
 SELECT
@@ -17,6 +20,7 @@ SELECT
     ROUND(SUM(o.price_usd) / NULLIF(COUNT(DISTINCT o.order_id), 0), 2) AS aov
 FROM website_sessions s
 LEFT JOIN orders o ON o.website_session_id = s.website_session_id
+WHERE s.created_at >= '2012-04-01' AND s.created_at < '2015-03-01'
 GROUP BY 1
 ORDER BY 1;
 -- EXPLANATION:
@@ -27,6 +31,8 @@ ORDER BY 1;
 -- * NULLIF(x, 0) avoids a divide-by-zero error in months with no orders.
 -- * Revenue per session = conversion rate x average order value, so one number
 --   shows whether growth comes from better conversion or bigger baskets.
+-- * The WHERE clause removes the two partial months. Without it the last month
+--   looks like a collapse that never happened.
 
 -- QUERY 2: month-over-month growth with window functions ---------------
 WITH monthly AS (
@@ -37,6 +43,7 @@ WITH monthly AS (
         SUM(o.price_usd)                        AS gross_revenue
     FROM website_sessions s
     LEFT JOIN orders o ON o.website_session_id = s.website_session_id
+    WHERE s.created_at >= '2012-04-01' AND s.created_at < '2015-03-01'
     GROUP BY 1
 )
 SELECT
@@ -67,6 +74,7 @@ WITH monthly AS (
         SUM(o.price_usd)                        AS gross_revenue
     FROM website_sessions s
     LEFT JOIN orders o ON o.website_session_id = s.website_session_id
+    WHERE s.created_at >= '2012-04-01' AND s.created_at < '2015-03-01'
     GROUP BY 1
 )
 SELECT
@@ -81,5 +89,6 @@ ORDER BY month;
 -- * LAG(col, 12) looks back 12 rows (12 months) because there is one row per month.
 -- * E-commerce has seasonality (holidays), so month-over-month alone can mislead.
 --   Year-over-year compares the same season, a fairer growth signal.
--- * This only works if no month is missing from the series. Check 1 in
---   00_setup/02_data_quality_checks.sql confirms the date range.
+-- * It only works when no month is missing, which the data quality checks confirmed.
+-- * Base effect: early-period YoY values are huge because the starting base is tiny.
+--   Read them with caution and focus on the recent trend.
