@@ -69,7 +69,7 @@ data/                 schema notes (raw data is not committed)
 
 [Tableau Public dashboard](https://public.tableau.com/app/profile/gamze.erol/viz/ToyStoreProductAnalytics/Dashboard) with four views: revenue per session and conversion by month, funnel by device, cross-sell share, and refund rate by product. It reads the aggregated CSVs in [`dashboard/data`](dashboard/data), exported from the SQL in modules 01, 03, 04 and 06.
 
-![Dashboard preview](dashboard/dashboard.png)
+![Dashboard preview](dashboard/Dashboard.png)
 
 ## 8. Product brief
 
