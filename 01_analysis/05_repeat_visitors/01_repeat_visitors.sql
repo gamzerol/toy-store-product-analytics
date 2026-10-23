@@ -77,3 +77,17 @@ SELECT
 FROM flagged
 GROUP BY 1
 ORDER BY 1;
+
+-- QUERY 5: conversion by channel, new vs repeat visitors (like-for-like comparison)
+SELECT
+    v.channel_group,
+    CASE WHEN v.is_repeat_session = 1 THEN 'repeat' ELSE 'new' END AS visitor_type,
+    COUNT(*)                                        AS sessions,
+    COUNT(o.order_id)                               AS orders,
+    ROUND(COUNT(o.order_id)::numeric / COUNT(*), 4) AS session_to_order_cvr,
+    ROUND(SUM(o.price_usd) / COUNT(*), 2)           AS revenue_per_session
+FROM v_sessions_channel v
+LEFT JOIN orders o ON o.website_session_id = v.website_session_id
+WHERE v.created_at >= '2012-04-01' AND v.created_at < '2015-03-01'
+GROUP BY 1, 2
+ORDER BY 1, 2;
